@@ -12,8 +12,7 @@ namespace PostgerSQLNpgsql
         static void Main(string[] args)
         {
             DateTime now = DateTime.Now;
-            var googleId = ConfigurationManager.AppSettings["GoogleId"]; 
-            //---- Обработка списка серверов PostgreSQL 
+            var googleId = ConfigurationManager.AppSettings["GoogleId"]; // Ссылка на URL Google Sheet
             List<ConnectionCredentials> servers = new List<ConnectionCredentials>();
 
             XmlDocument xDoc = new XmlDocument();
@@ -34,11 +33,17 @@ namespace PostgerSQLNpgsql
                 {
                     if(childnode.Name =="cred")
                     {
-                        Console.WriteLine($"Server connection string:{childnode.InnerText}");
+                      //  Console.WriteLine($"Server connection string:{childnode.InnerText}");
                         connectionCredentials.ConnectionStr = childnode.InnerText;
                     }
+                    if (childnode.Name == "db")
+                    {
+                        connectionCredentials.dbName = childnode.InnerText;
+                    }
                     servers.Add(connectionCredentials); // Получаем имя атрибута сервера из ServerList.xml
+
                 }
+
                 foreach (ConnectionCredentials c in servers)
                 {
                     Console.WriteLine($"{c.ConnectionStr} "); // Список всех credentials из ServerList.xml
@@ -46,7 +51,7 @@ namespace PostgerSQLNpgsql
                     con.Open();
 
                     var sqlQuerryDB = "SELECT * FROM current_catalog; SELECT current_catalog ";
-                    var sqlQuerry = "SELECT pg_database_size('postgres')";
+                    var sqlQuerry = $"SELECT pg_database_size('{c.dbName}')"; // 
                     var sqlQuerryName = "SELECT boot_val,reset_val FROM pg_settings WHERE name = 'listen_addresses'";
 
                     using var cmd = new NpgsqlCommand(sqlQuerry, con);
@@ -57,7 +62,13 @@ namespace PostgerSQLNpgsql
                     var dataBaseName = cmd2.ExecuteScalar().ToString();
                     var serverName = cmd3.ExecuteScalar().ToString();
 
+                    
+                    
+
                     Console.WriteLine($"Server Name: {serverName} Database Name: {dataBaseName} DB size: {sizeOfDb}");
+                    /// <summary>
+                    /// Заполнение данными Google Sheet из PostgreSQL 
+                    /// </summary>
 
                     var gsh = new GoogleSheetsHelper("security-details.json", googleId);
                     var nameOfServer = c.serverName;
@@ -65,24 +76,33 @@ namespace PostgerSQLNpgsql
                     var row1 = new GoogleSheetRow();
                     var row2 = new GoogleSheetRow();
                     var row3 = new GoogleSheetRow();
-                    var row4 = new GoogleSheetRow();
+                    
 
-                    var cell1 = new GoogleSheetCell() { CellValue = "Server", IsBold = true };
-                    var cell2 = new GoogleSheetCell() { CellValue = "Database " };
-                    var cell3 = new GoogleSheetCell() { CellValue = "SizeDB" };
-                    var cell4 = new GoogleSheetCell() { CellValue = "Date" };
+                    var cell1 = new GoogleSheetCell() { CellValue = "Сервер", IsBold = true };
+                    var cell2 = new GoogleSheetCell() { CellValue = "База данных " };
+                    var cell3 = new GoogleSheetCell() { CellValue = "Размер в ГБ" };
+                    var cell4 = new GoogleSheetCell() { CellValue = "Дата обновления" };
 
                     var cell5 = new GoogleSheetCell() { CellValue = $"{serverName}" };
                     var cell6 = new GoogleSheetCell() { CellValue = $"{dataBaseName}" };
                     var cell7 = new GoogleSheetCell() { CellValue = $"{sizeOfDb}" };
                     var cell8 = new GoogleSheetCell() { CellValue = $"{now}" };
 
+                    var cell9 = new GoogleSheetCell() { CellValue = $"{serverName}" };
+                    var cell10 = new GoogleSheetCell() { CellValue = "Свободно" };
+                    var cell11 = new GoogleSheetCell() { CellValue = $"{sizeOfDb}" };
+                    var cell12 = new GoogleSheetCell() { CellValue = $"{now}" };
+
+
                     row1.Cells.AddRange(new List<GoogleSheetCell>() { cell1, cell2, cell3, cell4 });
                     row2.Cells.AddRange(new List<GoogleSheetCell>() { cell5, cell6, cell7, cell8 });
+                    row3.Cells.AddRange(new List<GoogleSheetCell>() { cell9, cell10, cell11, cell12 });
 
-                    var rows = new List<GoogleSheetRow>() { row1, row2, row3, row4 };
+                    var rows = new List<GoogleSheetRow>() { row1, row2 };
+                    var lastRow = new List<GoogleSheetRow>() { row3 };
 
                     gsh.AddCells(new GoogleSheetParameters() { SheetName = nameOfServer, RangeColumnStart = 1, RangeRowStart = 1 }, rows);
+                    gsh.AddCells(new GoogleSheetParameters() { SheetName = nameOfServer, RangeColumnStart = 1, RangeRowStart = 20 }, lastRow);
                 }
             }
         }

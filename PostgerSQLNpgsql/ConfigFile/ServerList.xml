@@ -2,8 +2,14 @@
 <servers>
   <server name ="Server 1">
     <cred>Host=localhost;Username=postgres;Password=!234Qwer;Database=postgres</cred>
+    <db>postgres</db>
    </server>
     <server name ="Server 2">
     <cred>Host=127.0.0.1;Username=postgres;Password=!234Qwer;Database=test</cred>
+      <db>test</db>
+  </server>
+  <server name ="Server 1">
+    <cred>Host=127.0.0.1;Username=postgres;Password=!234Qwer;Database=newdb</cred>
+    <db>test</db>
   </server>
 </servers>
