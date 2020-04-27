@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<servers>
+  <server name ="Server 1">
+    <cred>Host=localhost;Username=postgres;Password=!234Qwer;Database=postgres</cred>
+   </server>
+    <server name ="Server 2">
+    <cred>Host=127.0.0.1;Username=postgres;Password=!234Qwer;Database=test</cred>
+  </server>
+</servers>
