@@ -9,10 +9,13 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace PostgerSQLNpgsql
+namespace PostgresSQLNpgsql
 {
     public class GoogleSheetsHelper
-    {
+    {   /// <summary>
+    ///  Класс для добавления информации в Google Sheet.
+    ///  Конструктор GoogleSheetsHelper принимет JSON файл сгенерированный на сайте Google, второй аргумент - URL Google Sheet
+    /// </summary>
         static string[] Scopes = { SheetsService.Scope.Spreadsheets };
         static string ApplicationName = "GoogleSheetsHelper";
 
@@ -187,6 +190,7 @@ namespace PostgerSQLNpgsql
 
         public List<GoogleSheetCell> Cells { get; set; }
     }
+
 
 }
 

@@ -1,18 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
-using System.Security.Policy;
+using System.IO;
 using System.Xml;
 using Npgsql; // Импорт элементов для подключения к PostgreSQL базе данных
 
-namespace PostgerSQLNpgsql
+namespace PostgresSQLNpgsql
 {
     class Program
     {
         static void Main(string[] args)
         {
+
+           // ConnectionCredentials newSheet = new ConnectionCredentials(); 
+           // newSheet.CreateSheet(); // Вызов метода для создания нового Google Sheet
+
             DateTime now = DateTime.Now;
-            var googleId = ConfigurationManager.AppSettings["GoogleId"]; // Ссылка на URL Google Sheet
+            var googleId = ConfigurationManager.AppSettings["googleId"]; // Ссылка на URL Google Sheet из App.config
             List<ConnectionCredentials> servers = new List<ConnectionCredentials>();
 
             XmlDocument xDoc = new XmlDocument();
@@ -46,13 +50,13 @@ namespace PostgerSQLNpgsql
 
                 foreach (ConnectionCredentials c in servers)
                 {
-                    Console.WriteLine($"{c.ConnectionStr} "); // Список всех credentials из ServerList.xml
+                    //Console.WriteLine($"{c.ConnectionStr} "); // Список всех credentials из ServerList.xml
                     using var con = new NpgsqlConnection(c.ConnectionStr); // Подключаемся к базе данных , подставляя список credentials
                     con.Open();
 
                     var sqlQuerryDB = "SELECT * FROM current_catalog; SELECT current_catalog ";
-                    var sqlQuerry = $"SELECT pg_database_size('{c.dbName}')"; // 
-                    var sqlQuerryName = "SELECT boot_val,reset_val FROM pg_settings WHERE name = 'listen_addresses'";
+                    var sqlQuerry = $"SELECT pg_size_pretty (pg_database_size('{c.dbName}'))"; 
+                    var sqlQuerryName = "SELECT boot_val,reset_val FROM pg_settings WHERE name = 'listen_addresses'"; // Достаем имя сервера
 
                     using var cmd = new NpgsqlCommand(sqlQuerry, con);
                     using var cmd2 = new NpgsqlCommand(sqlQuerryDB, con);
@@ -63,9 +67,17 @@ namespace PostgerSQLNpgsql
                     var serverName = cmd3.ExecuteScalar().ToString();
 
                     
+                    DriveInfo drive = new DriveInfo("C");
+                    double formatDivideBy = 1;
+                    double freeSpace = -1;
+                    long freeSpaceNative = drive.TotalFreeSpace;
+                    formatDivideBy = Math.Pow(1024, (int)3);
+
+                    freeSpace = freeSpaceNative / formatDivideBy;
+
                     
 
-                    Console.WriteLine($"Server Name: {serverName} Database Name: {dataBaseName} DB size: {sizeOfDb}");
+                    //Console.WriteLine($"Server Name: {serverName} Database Name: {dataBaseName} DB size: {resultSizeOfDb}");
                     /// <summary>
                     /// Заполнение данными Google Sheet из PostgreSQL 
                     /// </summary>
@@ -80,7 +92,7 @@ namespace PostgerSQLNpgsql
 
                     var cell1 = new GoogleSheetCell() { CellValue = "Сервер", IsBold = true };
                     var cell2 = new GoogleSheetCell() { CellValue = "База данных " };
-                    var cell3 = new GoogleSheetCell() { CellValue = "Размер в ГБ" };
+                    var cell3 = new GoogleSheetCell() { CellValue = "Размер " };
                     var cell4 = new GoogleSheetCell() { CellValue = "Дата обновления" };
 
                     var cell5 = new GoogleSheetCell() { CellValue = $"{serverName}" };
@@ -90,7 +102,7 @@ namespace PostgerSQLNpgsql
 
                     var cell9 = new GoogleSheetCell() { CellValue = $"{serverName}" };
                     var cell10 = new GoogleSheetCell() { CellValue = "Свободно" };
-                    var cell11 = new GoogleSheetCell() { CellValue = $"{sizeOfDb}" };
+                    var cell11 = new GoogleSheetCell() { CellValue = $"{freeSpace} Гб" };
                     var cell12 = new GoogleSheetCell() { CellValue = $"{now}" };
 
 
