@@ -55,7 +55,8 @@ namespace PostgresSQLNpgsql
                     con.Open();
 
                     var sqlQuerryDB = "SELECT * FROM current_catalog; SELECT current_catalog ";
-                    var sqlQuerry = $"SELECT pg_size_pretty (pg_database_size('{c.dbName}'))"; 
+                    //var sqlQuerry = $"SELECT pg_size_pretty (pg_database_size('{c.dbName}'))"; 
+                    var sqlQuerry = $"SELECT pg_database_size('{c.dbName}')";
                     var sqlQuerryName = "SELECT boot_val,reset_val FROM pg_settings WHERE name = 'listen_addresses'"; // Достаем имя сервера
 
                     using var cmd = new NpgsqlCommand(sqlQuerry, con);
@@ -66,15 +67,16 @@ namespace PostgresSQLNpgsql
                     var dataBaseName = cmd2.ExecuteScalar().ToString();
                     var serverName = cmd3.ExecuteScalar().ToString();
 
-                    
+                    long newSizeOfDb = long.Parse(sizeOfDb);
                     DriveInfo drive = new DriveInfo("C");
                     double formatDivideBy = 1;
                     double freeSpace = -1;
+                    double freeSpaceDB = -1;
                     long freeSpaceNative = drive.TotalFreeSpace;
                     formatDivideBy = Math.Pow(1024, (int)3);
 
                     freeSpace = freeSpaceNative / formatDivideBy;
-
+                    freeSpaceDB = newSizeOfDb / formatDivideBy;
                     
 
                     //Console.WriteLine($"Server Name: {serverName} Database Name: {dataBaseName} DB size: {resultSizeOfDb}");
@@ -97,7 +99,7 @@ namespace PostgresSQLNpgsql
 
                     var cell5 = new GoogleSheetCell() { CellValue = $"{serverName}" };
                     var cell6 = new GoogleSheetCell() { CellValue = $"{dataBaseName}" };
-                    var cell7 = new GoogleSheetCell() { CellValue = $"{sizeOfDb}" };
+                    var cell7 = new GoogleSheetCell() { CellValue = $"{freeSpaceDB}" };
                     var cell8 = new GoogleSheetCell() { CellValue = $"{now}" };
 
                     var cell9 = new GoogleSheetCell() { CellValue = $"{serverName}" };
