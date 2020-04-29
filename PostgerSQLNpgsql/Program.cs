@@ -11,52 +11,54 @@ namespace PostgresSQLNpgsql
     {
         static void Main(string[] args)
         {
-
-           // ConnectionCredentials newSheet = new ConnectionCredentials(); 
-           // newSheet.CreateSheet(); // Вызов метода для создания нового Google Sheet
-
+            // ConnectionCredentials newSheet = new ConnectionCredentials(); 
+            // newSheet.CreateSheet(); // Вызов метода для создания нового Google Sheet
             DateTime now = DateTime.Now;
-            var googleId = ConfigurationManager.AppSettings["googleId"]; // Ссылка на URL Google Sheet из App.config
+            
             List<ConnectionCredentials> servers = new List<ConnectionCredentials>();
-
-            XmlDocument xDoc = new XmlDocument();
-            xDoc.Load("C://Users//kirik//source//repos//PostgerSQLNpgsql//PostgerSQLNpgsql//ConfigFile//ServerList.xml");  // получим корневой элемент
-            XmlElement xRoot = xDoc.DocumentElement;  // обход всех узлов в корневом элементе
-            foreach (XmlNode xnode in xRoot)
+            try
             {
-                ConnectionCredentials connectionCredentials = new ConnectionCredentials();
 
-                if (xnode.Attributes.Count > 0)
+                var pathToXml = ConfigurationManager.AppSettings["pathToXml"]; // Путь к ServerList.xml
+                XmlDocument xDoc = new XmlDocument();
+                xDoc.Load(pathToXml);  // получим корневой элемент
+                XmlElement xRoot = xDoc.DocumentElement;  // обход всех узлов в корневом элементе
+                foreach (XmlNode xnode in xRoot)
                 {
-                    XmlNode attr = xnode.Attributes.GetNamedItem("name");
-                    if (attr != null)         
-                        connectionCredentials.serverName = attr.Value; // Получаем имя сервера из ServerList.xml
-                        
-                }
-                foreach(XmlNode childnode in xnode.ChildNodes)
-                {
-                    if(childnode.Name =="cred")
-                    {
-                      //  Console.WriteLine($"Server connection string:{childnode.InnerText}");
-                        connectionCredentials.ConnectionStr = childnode.InnerText;
-                    }
-                    if (childnode.Name == "db")
-                    {
-                        connectionCredentials.dbName = childnode.InnerText;
-                    }
-                    servers.Add(connectionCredentials); // Получаем имя атрибута сервера из ServerList.xml
+                    ConnectionCredentials connectionCredentials = new ConnectionCredentials();
 
-                }
+                    if (xnode.Attributes.Count > 0)
+                    {
+                        XmlNode attr = xnode.Attributes.GetNamedItem("name");
+                        if (attr != null)
+                            connectionCredentials.serverName = attr.Value; // Получаем имя сервера из ServerList.xml
 
+                    }
+                    foreach (XmlNode childnode in xnode.ChildNodes)
+                    {
+                        if (childnode.Name == "cred")
+                        {
+                            //  Console.WriteLine($"Server connection string:{childnode.InnerText}");
+                            connectionCredentials.ConnectionStr = childnode.InnerText;
+                        }
+                        if (childnode.Name == "db")
+                        {
+                            connectionCredentials.dbName = childnode.InnerText;
+                        }
+                        servers.Add(connectionCredentials); // Получаем имя атрибута сервера из ServerList.xml
+
+                    }
+                }
                 foreach (ConnectionCredentials c in servers)
                 {
                     //Console.WriteLine($"{c.ConnectionStr} "); // Список всех credentials из ServerList.xml
-                    using var con = new NpgsqlConnection(c.ConnectionStr); // Подключаемся к базе данных , подставляя список credentials
-                    con.Open();
+                    using var con = new NpgsqlConnection(c.ConnectionStr);
 
-                    var sqlQuerryDB = "SELECT * FROM current_catalog; SELECT current_catalog ";
+                    con.Open(); // Подключаемся к базе данных , подставляя список credentials
+
+                    var sqlQuerryDB = "SELECT * FROM current_catalog; SELECT current_catalog "; // Достаем имя Базы данных
                     //var sqlQuerry = $"SELECT pg_size_pretty (pg_database_size('{c.dbName}'))"; 
-                    var sqlQuerry = $"SELECT pg_database_size('{c.dbName}')";
+                    var sqlQuerry = $"SELECT pg_database_size('{c.dbName}')"; // Размер выбранной базы данных на сервере
                     var sqlQuerryName = "SELECT boot_val,reset_val FROM pg_settings WHERE name = 'listen_addresses'"; // Достаем имя сервера
 
                     using var cmd = new NpgsqlCommand(sqlQuerry, con);
@@ -67,58 +69,81 @@ namespace PostgresSQLNpgsql
                     var dataBaseName = cmd2.ExecuteScalar().ToString();
                     var serverName = cmd3.ExecuteScalar().ToString();
 
-                    long newSizeOfDb = long.Parse(sizeOfDb);
-                    DriveInfo drive = new DriveInfo("C");
-                    double formatDivideBy = 1;
-                    double freeSpace = -1;
-                    double freeSpaceDB = -1;
-                    long freeSpaceNative = drive.TotalFreeSpace;
-                    formatDivideBy = Math.Pow(1024, (int)3);
+                    long newSizeOfDb = long.Parse(sizeOfDb); // Преобразуем размер базы данных из string в long
+                    try
+                    {
+                        DriveInfo drive = new DriveInfo("C");     // Достаем размер локального диска "C"
+                        double formatDivideBy = 1;
+                        double freeSpace = -1;
+                        double freeSpaceDB = -1;
+                        long freeSpaceNative = drive.TotalFreeSpace;
+                        formatDivideBy = Math.Pow(1024, (int)3);
 
-                    freeSpace = freeSpaceNative / formatDivideBy;
-                    freeSpaceDB = newSizeOfDb / formatDivideBy;
-                    
-
-                    //Console.WriteLine($"Server Name: {serverName} Database Name: {dataBaseName} DB size: {resultSizeOfDb}");
-                    /// <summary>
-                    /// Заполнение данными Google Sheet из PostgreSQL 
-                    /// </summary>
-
-                    var gsh = new GoogleSheetsHelper("security-details.json", googleId);
-                    var nameOfServer = c.serverName;
-
-                    var row1 = new GoogleSheetRow();
-                    var row2 = new GoogleSheetRow();
-                    var row3 = new GoogleSheetRow();
-                    
-
-                    var cell1 = new GoogleSheetCell() { CellValue = "Сервер", IsBold = true };
-                    var cell2 = new GoogleSheetCell() { CellValue = "База данных " };
-                    var cell3 = new GoogleSheetCell() { CellValue = "Размер " };
-                    var cell4 = new GoogleSheetCell() { CellValue = "Дата обновления" };
-
-                    var cell5 = new GoogleSheetCell() { CellValue = $"{serverName}" };
-                    var cell6 = new GoogleSheetCell() { CellValue = $"{dataBaseName}" };
-                    var cell7 = new GoogleSheetCell() { CellValue = $"{freeSpaceDB}" };
-                    var cell8 = new GoogleSheetCell() { CellValue = $"{now}" };
-
-                    var cell9 = new GoogleSheetCell() { CellValue = $"{serverName}" };
-                    var cell10 = new GoogleSheetCell() { CellValue = "Свободно" };
-                    var cell11 = new GoogleSheetCell() { CellValue = $"{freeSpace} Гб" };
-                    var cell12 = new GoogleSheetCell() { CellValue = $"{now}" };
+                        freeSpace = freeSpaceNative / formatDivideBy;
+                        freeSpaceDB = newSizeOfDb / formatDivideBy;
 
 
-                    row1.Cells.AddRange(new List<GoogleSheetCell>() { cell1, cell2, cell3, cell4 });
-                    row2.Cells.AddRange(new List<GoogleSheetCell>() { cell5, cell6, cell7, cell8 });
-                    row3.Cells.AddRange(new List<GoogleSheetCell>() { cell9, cell10, cell11, cell12 });
+                        Console.WriteLine($"Server Name: {serverName} Database Name: {dataBaseName} DB size: {freeSpaceDB}");
+                        /// <summary>
+                        /// Заполнение данными Google Sheet из PostgreSQL 
+                        /// </summary>
+                        var googleId = ConfigurationManager.AppSettings["googleId"]; // Ссылка на URL Google Sheet из App.config
+                        var gsh = new GoogleSheetsHelper("security-details.json", googleId);
+                        var nameOfServer = c.serverName;
 
-                    var rows = new List<GoogleSheetRow>() { row1, row2 };
-                    var lastRow = new List<GoogleSheetRow>() { row3 };
+                        var row1 = new GoogleSheetRow();
+                        var row2 = new GoogleSheetRow();
+                        var row3 = new GoogleSheetRow();
 
-                    gsh.AddCells(new GoogleSheetParameters() { SheetName = nameOfServer, RangeColumnStart = 1, RangeRowStart = 1 }, rows);
-                    gsh.AddCells(new GoogleSheetParameters() { SheetName = nameOfServer, RangeColumnStart = 1, RangeRowStart = 20 }, lastRow);
+
+                        var cell1 = new GoogleSheetCell() { CellValue = "Сервер", IsBold = true };
+                        var cell2 = new GoogleSheetCell() { CellValue = "База данных " };
+                        var cell3 = new GoogleSheetCell() { CellValue = "Размер " };
+                        var cell4 = new GoogleSheetCell() { CellValue = "Дата обновления" };
+
+                        var cell5 = new GoogleSheetCell() { CellValue = $"{serverName}" };
+                        var cell6 = new GoogleSheetCell() { CellValue = $"{dataBaseName}" };
+                        var cell7 = new GoogleSheetCell() { CellValue = $"{freeSpaceDB}" };
+                        var cell8 = new GoogleSheetCell() { CellValue = $"{now}" };
+
+                        var cell9 = new GoogleSheetCell() { CellValue = $"{serverName}" };
+                        var cell10 = new GoogleSheetCell() { CellValue = "Свободно" };
+                        var cell11 = new GoogleSheetCell() { CellValue = $"{freeSpace} Гб" };
+                        var cell12 = new GoogleSheetCell() { CellValue = $"{now}" };
+
+
+                        row1.Cells.AddRange(new List<GoogleSheetCell>() { cell1, cell2, cell3, cell4 });
+                        row2.Cells.AddRange(new List<GoogleSheetCell>() { cell5, cell6, cell7, cell8 });
+                        row3.Cells.AddRange(new List<GoogleSheetCell>() { cell9, cell10, cell11, cell12 });
+
+                        var rows = new List<GoogleSheetRow>() { row1, row2 };
+                        var lastRow = new List<GoogleSheetRow>() { row3 };
+
+                        gsh.AddCells(new GoogleSheetParameters() { SheetName = nameOfServer, RangeColumnStart = 1, RangeRowStart = 1 }, rows);
+                        gsh.AddCells(new GoogleSheetParameters() { SheetName = nameOfServer, RangeColumnStart = 1, RangeRowStart = 20 }, lastRow);
+                    }
+                    catch (ArgumentException ax)
+                    {
+                        Console.WriteLine($"{ax.Message} \n Проверьте имя диска на котором установлена PostgreSQL");
+                    }
+                    catch (ConfigurationErrorsException ex)
+                    {
+                        Console.WriteLine($"{ex.Message} \n Проверьте атрибут в App.config");
+                    }
+                     catch (Exception ex)
+                      {
+                         Console.WriteLine($"{ex.Message}  \n Проверьте файл security-details.json \n Проверьте правильность заполнения файла App.config для подключения к Google API" );
+                      }
                 }
+            } catch (FileNotFoundException ex)
+            {
+                Console.WriteLine("Файл ServerList.xml не найден");
+            }
+            catch (ConfigurationErrorsException)
+            {
+                Console.WriteLine("Проверьте App.config");
+            }
             }
         }
     }
-}
+
